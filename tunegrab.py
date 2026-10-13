@@ -74,6 +74,22 @@ def bold(text: str) -> str:
     return f"\x1b[1m{text}\x1b[0m" if COLOR else text
 
 
+# Cores nomeadas. Python < 3.12 (PEP 701) nao permite backslash dentro da parte
+# de expressao de um f-string, entao escapes literais direto em {bold('...')}
+# viram SyntaxError em 3.9/3.10/3.11. Use sempre tint(TEXTO, COR).
+_RESET = "\x1b[0m"
+BOLD_RED = "\x1b[1;31m"
+BOLD_GREEN = "\x1b[1;32m"
+BOLD_YELLOW = "\x1b[1;33m"
+BOLD_CYAN = "\x1b[1;36m"
+PLAIN_GREEN = "\x1b[32m"
+PLAIN_YELLOW = "\x1b[33m"
+
+
+def tint(text: str, code: str) -> str:
+    return f"{code}{text}{_RESET}" if COLOR else text
+
+
 # --- Banner ASCII ----------------------------------------------------------
 # Fonte block 5 linhas / 7 colunas por letra.
 _FONT = {
@@ -652,7 +668,7 @@ def process_track(track: Track, idx: int, total: int, out_dir: Path,
                          suffix=args.query_suffix)
     if not cands:
         track.status = "failed"
-        log(f"{prefix} {bold('\x1b[31mERRO\x1b[0m')}  busca sem resultados: "
+        log(f"{prefix} {tint('ERRO', BOLD_RED)}  busca sem resultados: "
             f"{track.artist} - {track.title}")
         return track
 
@@ -661,12 +677,12 @@ def process_track(track: Track, idx: int, total: int, out_dir: Path,
         track.status = "no-match"
         track.info = {"best": best.title, "score": best.score,
                       "candidates": [(c.title, c.score) for c in cands[:3]]}
-        log(f"{prefix} {bold('\x1b[33mSEM MATCH\x1b[0m')} ({best.score:.2f} < "
+        log(f"{prefix} {tint('SEM MATCH', BOLD_YELLOW)} ({best.score:.2f} < "
             f"{args.min_score:.2f})  {track.artist} - {track.title}")
         log(f"        {dim('top: ' + best.title[:72])}")
         return track
 
-    log(f"{prefix} {bold('\x1b[36mmatch\x1b[0m')} {best.score:.2f}  "
+    log(f"{prefix} {tint('match', BOLD_CYAN)} {best.score:.2f}  "
         f"{dim(best.title[:64])}")
 
     # Cada faixa usa um temporario proprio: sem colisao entre threads e sem
@@ -706,11 +722,11 @@ def process_track(track: Track, idx: int, total: int, out_dir: Path,
                       "score": used.score, "file": final.name}
         if used is not best:
             log(f"        {dim('usou candidato alternativo: ' + used.title[:58])}")
-        log(f"{prefix} {bold('\x1b[32mOK\x1b[0m')}    {dim(final.name[:70])}")
+        log(f"{prefix} {tint('OK', BOLD_GREEN)}    {dim(final.name[:70])}")
     except Exception as ex:
         track.status = "failed"
         track.info = {"error": f"{type(ex).__name__}: {ex}", "match": best.title}
-        log(f"{prefix} {bold('\x1b[31mFALHOU\x1b[0m')}  {track.artist} - {track.title}"
+        log(f"{prefix} {tint('FALHOU', BOLD_RED)}  {track.artist} - {track.title}"
             f"  {dim(str(ex)[:60])}")
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
@@ -757,7 +773,7 @@ def write_manifest(pl: Playlist, out_dir: Path, ext: str = "mp3") -> None:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="tunegrab",
-        description=f"{APP_NAME} {APP_VERSION} — {APP_TAGLINE}",
+        description=f"{APP_NAME} {APP_VERSION} — {APP_TAGLINE} (Python 3.9+)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""exemplos:
   tunegrab <url-spotify>                        baixa tudo na pasta da playlist
@@ -829,15 +845,15 @@ def main(argv: list[str] | None = None) -> int:
     try:
         pl = fetch_playlist(args.url, args.client_id, args.client_secret, args.timeout)
     except (ValueError, RuntimeError) as ex:
-        log(f"  {bold('\x1b[31mERRO\x1b[0m')} {ex}")
+        log(f"  {tint('ERRO', BOLD_RED)} {ex}")
         return 2
     except Exception as ex:
-        log(f"  {bold('\x1b[31mERRO\x1b[0m')} falha de rede: "
+        log(f"  {tint('ERRO', BOLD_RED)} falha de rede: "
             f"{type(ex).__name__}: {ex}")
         return 2
 
     if not pl.tracks:
-        log(f"  {bold('\x1b[31mERRO\x1b[0m')} playlist vazia.")
+        log(f"  {tint('ERRO', BOLD_RED)} playlist vazia.")
         return 3
 
     print_playlist(pl, limit=None if not args.list else None)
@@ -856,7 +872,7 @@ def main(argv: list[str] | None = None) -> int:
     elif ffmpeg:
         log(f"  {dim('ffmpeg: ' + ffmpeg)}")
     else:
-        log(f"  {bold('\x1b[33mAVISO\x1b[0m')} ffmpeg nao encontrado: "
+        log(f"  {tint('AVISO', BOLD_YELLOW)} ffmpeg nao encontrado: "
             f"vou salvar o audio original do YouTube (sem converter).")
 
     if args.dry_run:
@@ -864,14 +880,15 @@ def main(argv: list[str] | None = None) -> int:
         for t in pl.tracks:
             cands = search_track(t, args.search_limit, suffix=args.query_suffix)
             if not cands:
-                log(f"   {dim(f'{t.index:>3}.')} {bold('\x1b[31mnenhum resultado\x1b[0m')} "
+                log(f"   {dim(f'{t.index:>3}.')} {tint('nenhum resultado', BOLD_RED)} "
                     f"{t.artist} - {t.title}")
                 continue
             b = cands[0]
-            ok = "ok" if b.score >= args.min_score else "fraco"
-            col = "\x1b[32m" if ok == "ok" else "\x1b[33m"
-            log(f"   {dim(f'{t.index:>3}.')} [{col}{b.score:.2f}{'\x1b[0m'} {ok:>5}] "
-                f"{dim(b.title[:60])}")
+            forte = b.score >= args.min_score
+            score_txt = tint(f"{b.score:.2f}",
+                             PLAIN_GREEN if forte else PLAIN_YELLOW)
+            log(f"   {dim(f'{t.index:>3}.')} [{score_txt} "
+                f"{('ok' if forte else 'fraco'):>5}] {dim(b.title[:60])}")
         log("")
         return 0
 
@@ -902,10 +919,10 @@ def main(argv: list[str] | None = None) -> int:
     log("")
     log(f"  {_c('─' * 58, *_gradient(0.5))}")
     log(f"  {bold('Resumo')}  {fmt_time(time.time() - t0)}")
-    log(f"    {bold('\x1b[32mbaixadas\x1b[0m')} {ok}"
-        f"   {bold('\x1b[36mja existentes\x1b[0m')} {skipped}"
-        f"   {bold('\x1b[33msem match\x1b[0m')} {nomatch}"
-        f"   {bold('\x1b[31mcom erro\x1b[0m')} {failed}")
+    log(f"    {tint('baixadas', BOLD_GREEN)} {ok}"
+        f"   {tint('ja existentes', BOLD_CYAN)} {skipped}"
+        f"   {tint('sem match', BOLD_YELLOW)} {nomatch}"
+        f"   {tint('com erro', BOLD_RED)} {failed}")
     log(f"    {total_files} arquivos · {size_mb:.1f} MB")
     log(f"    {bold(out_dir)}")
     log("")
