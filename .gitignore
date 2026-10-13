@@ -1,0 +1,32 @@
+# Saida do TuneGrab (musicas baixadas + metadados)
+*.mp3
+*.m4a
+*.opus
+*.flac
+*.webm
+*.aac
+*.wav
+playlist.m3u
+tracklist.txt
+nao-baixadas.txt
+favorites/
+*.part
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Config local / segredos
+.env
+config.json
+cookies.txt
+
+# Editores e OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

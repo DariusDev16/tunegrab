@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.9', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Compiles
+        run: python -m py_compile tunegrab.py
+
+      - name: Import smoke test
+        run: python -c "import tunegrab; print('version', tunegrab.APP_VERSION)"
+
+      - name: CLI responds to --help
+        run: python tunegrab.py --help
+
+      # Matching / normalizacao / filenames sao a parte com logica real.
+      # Nao testamos download aqui de proposito: o YouTube bloqueia IP de
+      # datacenter, entao um download em CI seria instavel por nature.
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v

@@ -1,0 +1,9 @@
+# Normaliza finais de linha no repositorio (LF), mas converte para CRLF no
+# checkout do Windows, que e onde a maioria vai rodar (o .bat precisa de CRLF).
+* text=auto eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.py text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf

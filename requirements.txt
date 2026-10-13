@@ -1,0 +1,2 @@
+# Unica dependencia de runtime. ffmpeg e externo (veja o README).
+yt-dlp>=2024.1.1
